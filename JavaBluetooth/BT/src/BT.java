@@ -1,0 +1,113 @@
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Locale;
+import java.util.Random;
+
+import javax.bluetooth.*;
+import javax.microedition.io.*;
+import com.intel.bluetooth.BluetoothConnectionAccess;
+
+public class BT 
+{
+	static DiscoveryAgent agent;
+	static DiscoveryListener listener;
+	static ServiceRecord service;
+	
+	public static void main(String args[]) throws IOException 
+	{
+		final Object inquiryCompletedEvent = new Object();
+		agent = LocalDevice.getLocalDevice().getDiscoveryAgent();
+		
+		listener = new DiscoveryListener()
+		{
+			@Override
+			public void deviceDiscovered(RemoteDevice arg0, DeviceClass arg1) {
+				try
+				{
+					System.err.println("Found device: " + arg0.getFriendlyName(false) + " (" + arg0.getBluetoothAddress() + ")");
+					if(arg0.getBluetoothAddress().equals("AC220B622390"))
+					{
+						UUID[] UUIDs = {new UUID("749838C96A994D61A6CC5A2B0F833C15", false)};
+						int[] attr = null;
+						System.err.println("Found it! Searching for services now...");
+						agent.searchServices(attr, UUIDs, arg0, listener);
+					}
+				}
+				catch(Exception e)
+				{
+					e.printStackTrace();
+				}
+			}
+
+			@Override
+			public void inquiryCompleted(int arg0) {
+				System.err.println("Inquiry finished.");
+			}
+
+			@Override
+			public void serviceSearchCompleted(int arg0, int arg1) {
+				
+				
+				StreamConnection conn = null;
+				try
+				{
+					conn = (StreamConnection) Connector.open(service.getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false));
+					DataOutputStream dos = new DataOutputStream(conn.openOutputStream());
+					
+					for(int i = 0; i < 100; i++)
+					{
+						byte[] data = new byte[2048];
+						new Random().nextBytes(data);
+						long curr_time = System.currentTimeMillis();
+						
+						dos.write(data);
+						dos.flush();
+						System.err.println(curr_time + "");
+						
+					}
+					
+					dos.close();
+					conn.close();
+				}
+				catch(Exception e){
+					e.printStackTrace();
+				}
+				
+				synchronized(inquiryCompletedEvent){
+					inquiryCompletedEvent.notifyAll();
+				}
+			}
+
+			@Override
+			public void servicesDiscovered(int arg0, ServiceRecord[] arg1) 
+			{
+				service = arg1[0];
+				System.err.println("Discovered Service: " + arg1[0].getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false));
+			}
+			
+		};
+		
+		synchronized(inquiryCompletedEvent)
+		{
+			try
+			{
+				boolean started = agent.startInquiry(DiscoveryAgent.GIAC, listener);
+				
+				if(started)
+				{
+					System.err.println("Inquiry...");
+					inquiryCompletedEvent.wait();
+				}
+			}
+			catch(Exception e)
+			{
+				e.printStackTrace();
+			}
+		}
+	}
+}
