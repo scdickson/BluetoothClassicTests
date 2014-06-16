@@ -3,6 +3,8 @@ package com.flukenetworks;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothServerSocket;
 import android.bluetooth.BluetoothSocket;
+import android.content.Context;
+import android.os.Handler;
 import android.util.Log;
 
 import java.lang.reflect.Method;
@@ -16,21 +18,23 @@ public class BluetoothServerThread extends Thread
     BluetoothAdapter adapter;
     BluetoothServerSocket ss;
     UUID uuid;
+    Handler handler;
 
-    public BluetoothServerThread(BluetoothAdapter adapter)
+    public BluetoothServerThread(BluetoothAdapter adapter, Handler handler)
     {
+        this.handler =  handler;
         this.adapter = adapter;
         this.uuid = UUID.fromString(MainActivity.UUID);
 
         try
         {
-            //ss = adapter.listenUsingRfcommWithServiceRecord(MainActivity.NAME, uuid);
             ss = adapter.listenUsingInsecureRfcommWithServiceRecord(MainActivity.NAME, uuid);
+            //ss = adapter.listenUsingRfcommWithServiceRecord(MainActivity.NAME, uuid);
             MainActivity.console.append("Now listening (name: " + MainActivity.NAME + ", uuid: " + MainActivity.UUID + ")\n");
         }
         catch(Exception e)
         {
-            MainActivity.console.append(e.getMessage());
+            e.printStackTrace();
         }
     }
 
@@ -44,7 +48,7 @@ public class BluetoothServerThread extends Thread
             {
                 s = ss.accept();
                 Log.d("BT", "Accepted connection from " + s.getRemoteDevice().getName() + " (" + s.getRemoteDevice().getAddress() + ")");
-                BluetoothHandlerThread handlerThread = new BluetoothHandlerThread(adapter, s);
+                BluetoothHandlerThread handlerThread = new BluetoothHandlerThread(adapter, s, handler);
                 ss.close();
                 ss = null;
                 handlerThread.start();
@@ -52,7 +56,6 @@ public class BluetoothServerThread extends Thread
             }
             catch (Exception e)
             {
-                MainActivity.console.append(e.getMessage());
                 e.printStackTrace();
             }
         }
