@@ -1,8 +1,6 @@
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.InputStream;
-import java.io.DataInputStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -16,12 +14,10 @@ import com.intel.bluetooth.BluetoothConnectionAccess;
 
 public class BT 
 {
-	public native void wscan();
 	static DiscoveryAgent agent;
 	static DiscoveryListener listener;
 	static ServiceRecord service;
-	static int num_samples = 50;
-
+	
 	public static void main(String args[]) throws IOException 
 	{
 		final Object inquiryCompletedEvent = new Object();
@@ -44,14 +40,7 @@ public class BT
 				}
 				catch(Exception e)
 				{
-					try
-					{
-						System.err.println("Found device: [unknown device] (" + arg0.getBluetoothAddress() + ")");
-					}
-					catch(Exception ex)
-					{
-						ex.printStackTrace();
-					}
+					e.printStackTrace();
 				}
 			}
 
@@ -67,34 +56,22 @@ public class BT
 				StreamConnection conn = null;
 				try
 				{
-					//conn = (StreamConnection) Connector.open(service.getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false));
-					conn = (StreamConnection) Connector.open(service.getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, true));
+					conn = (StreamConnection) Connector.open(service.getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false));
 					DataOutputStream dos = new DataOutputStream(conn.openOutputStream());
-					DataInputStream dis = new DataInputStream(conn.openInputStream());
 					
-					Random r = new Random(System.currentTimeMillis());
-					byte buf[] = new byte[1024 * 1000];
-
-					for(int i = 0; i < num_samples; i++)
+					for(int i = 0; i < 100; i++)
 					{
-						System.out.println("Write #" + i);
-						r.nextBytes(buf);
-						dos.writeInt(1);
-						dos.write(buf);
+						byte[] data = new byte[2048];
+						new Random().nextBytes(data);
+						long curr_time = System.currentTimeMillis();
+						
+						dos.write(data);
+						dos.flush();
+						System.err.println(curr_time + "");
+						
 					}
-
-					double mean = dis.readDouble();
-					double stddev = dis.readDouble();
-					double min = dis.readDouble();
-					double max = dis.readDouble();
-
-					System.out.println("Mean over " + num_samples + " samples: " + mean + " Mbps!");
-					System.out.println("Std. Dev.: " + stddev);
-					System.out.println("MIN: " + min);
-					System.out.println("MAX: " + max);
-
+					
 					dos.close();
-					dis.close();
 					conn.close();
 				}
 				catch(Exception e){
@@ -110,7 +87,7 @@ public class BT
 			public void servicesDiscovered(int arg0, ServiceRecord[] arg1) 
 			{
 				service = arg1[0];
-				System.err.println("Discovered Service: " + arg1[0].getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, true));
+				System.err.println("Discovered Service: " + arg1[0].getConnectionURL(ServiceRecord.NOAUTHENTICATE_NOENCRYPT, false));
 			}
 			
 		};
